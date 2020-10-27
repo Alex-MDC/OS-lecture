@@ -31,21 +31,15 @@ int cashier = 5;                                /* number of cashiers to use    
 
 int lower = 1, upper = 200;
 
-void sellmilk(intptr_t *t_id){
+void sellmilk(intptr_t *t_id, int milkSale){
     intptr_t t_id2 = (intptr_t) t_id;
    //sell a random number of milk from 1-200 bottles
-   // every seller can have up to 5 customers
-    srand(time(0));
-    int customers, milkSale;
-    customers = lrand48() % 6;   //creates 0 to 5 customers
-    //we need to use lrand48 instead of the usual srand as srand if not THREAD SAFE and will give the same value of customers to the threads!
-    //however it does not solve all isues, every program run seems to have the same random distrubution of customers 
-    printf("This seller has found %d customers!", customers);
+   // srand(time(0));
+   // int milkSale;
 
-    int customerCount=0;
-    while(customerCount != customers && stock != -1)
-    {
-   	 milkSale = (rand() % (upper - lower + 1))+lower;
+    if(stock > 0 )
+       {
+   	// milkSale = (rand() % (upper - lower + 1))+lower;
   	 printf("\n This sale's  planned units: %d", milkSale);
     //rand sale done
     //now verify if it is doable
@@ -55,13 +49,12 @@ void sellmilk(intptr_t *t_id){
 	  	 printf("\n The planned amount was sold!");
 	    }
 	  else{
-		  if(milkSale > stock){
-			  printf(  "\nThe planned amount can not be sold, instead, current  customer will get all remaining units\n");
+		  if(milkSale > stock && stock != -1){
+			  printf(  "\n  The planned amount can not be sold, instead, current  customer will get all remaining units\n");
 			 stock = -1;
-		//this flag lets us know no more milk will be available for sale to other threads and/or customers!
+		//this flag lets us know no more milk will be available for sale to other threads and their customers!
 		  }
-	  }
-	  customerCount++;
+	 }
     }
     if(stock == -1){
 	    printf("\nAll milk has been sold for today!\n");
@@ -75,12 +68,17 @@ void sellmilk(intptr_t *t_id){
 void *threadfunc(void *i){
     intptr_t t_id = (intptr_t) i;
     printf(">>Inside thread %zd\n", t_id);
-    
+   
+    srand(time(0));
+    int milkSale;
+
     printf(">>" BWHITE "%zd " RESET "Trying to access!\n", t_id);
     pthread_mutex_lock(&mutex);
     printf(RED "BLOCK BY %zd\n" RESET, t_id);
     if(stock > 0){
-        sellmilk((intptr_t *)t_id);
+	//we need to use lrand48 in order to create proper random numbers every iteration, or else, that randommnumber will be the same for every sale even n different threads
+	milkSale = (lrand48() % (upper - lower + 1))+lower;
+        sellmilk((intptr_t *)t_id, milkSale);
         printf(GREEN "UNBLOCK BY %zd\n" RESET, t_id);
         printf("\t\t\t STOCK-> %d\n", stock);
         pthread_mutex_unlock(&mutex);
@@ -100,9 +98,9 @@ int main(void){
 
     int i;
     
-    /*
-    *   Create the threads up to cashier
-    */
+ //run the sales as round, each round a thread or seller sells if possible the planned ammount
+ //each round is made up of all the threads trying to sell
+for(int x =0; x < 5; x++){
     for(i = 0; i < cashier; i++){
         pthread_create(&thread[i], NULL, threadfunc, (void *) (intptr_t) (i+1));
     }
@@ -113,6 +111,7 @@ int main(void){
     for(i = 0; i < cashier; i++){
         pthread_join(thread[i], NULL);
     }
+}
 
     printf("\n Thanks for buying LonLon Ranch Milk!\n");
 
